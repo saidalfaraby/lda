@@ -3,10 +3,11 @@ from __future__ import absolute_import, unicode_literals  # noqa
 import logging
 import numbers
 import sys
-from os import listdir
-from os.path import isfile, join
+from os import listdir, makedirs
+from os.path import isfile, isdir, join
 import mimetypes
 import re,string
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
 import numpy as np
 
@@ -75,6 +76,33 @@ def matrix_to_lists(doc_word):
         startidx += cnt
     return WS, DS
 
+def files_preprocessing(in_dir,out_dir):
+    """
+    S
+    """
+    global i
+    i=0
+    factory = StemmerFactory()
+    stemmer = factory.create_stemmer()
+    if not isdir(out_dir):
+        makedirs(out_dir)
+
+    def directory_helper(in_dir):
+        global i
+        files = listdir(in_dir)
+        files = sorted(files)
+        for f in files:
+            new_path = join(in_dir, f)
+            if isfile(new_path) and mimetypes.guess_type(new_path)[0]=='text/plain':
+                of = open(new_path).read()
+                of = stemmer.stem(of)
+                nf = open(join(out_dir,in_dir.replace('/','_')+'_'+str(i)+'.txt'),'wb')
+                nf.write(of)
+                i+=1
+            elif isdir(new_path):
+                directory_helper(new_path)
+
+    directory_helper(in_dir)
 
 def files_to_lists(directory):
     """Convert directory of text files into arrays of word and doc indices
@@ -83,8 +111,10 @@ def files_to_lists(directory):
     directory : path of directory contains text files (documents)
     Returns
     -------
-    (V, WS, DS) : tuple of two arrays
-        V[j] contains jth word in the corpus vocabulary
+    (V, L, WS, DS) : tuple of two arrays
+        V[i] contains ith word in the corpus vocabulary
+        L[j] contains the label of jth document 
+        (HARD CODED-- LABEL IS EITHER 'Yes' OR 'No' ACCORDING TO FILENAME : tes_Yes_3.txt or tes_No_4.txt)
         WS[k] contains index of the kth word in the corpus
         DS[k] contains the document index for the kth word
     """
@@ -94,6 +124,7 @@ def files_to_lists(directory):
     print textfiles
     WS=[]
     DS=[]
+    L = []
     for f in range(len(textfiles)):
         r = open(join(directory,textfiles[f])).read().lower()
         table=string.maketrans("","")
@@ -107,7 +138,13 @@ def files_to_lists(directory):
                     V+=[w]
                 WS+=[iw]
                 DS+=[f]
-    return np.asarray(V),np.asarray(WS,dtype=np.intc),np.asarray(DS,dtype=np.intc)
+        if 'yes' in textfiles[f].lower().split('_'):
+            L+=[1]
+        elif 'no' in textfiles[f].lower().split('_'):
+            L+=[0]
+        else:
+            raise ValueError("{} do not contain yes or no label.".format(textfiles[f]))
+    return np.asarray(V),np.asarray(L,dtype=np.intc),np.asarray(WS,dtype=np.intc),np.asarray(DS,dtype=np.intc)
 
 
 def lists_to_matrix(WS, DS):
