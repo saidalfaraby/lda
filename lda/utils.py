@@ -3,6 +3,10 @@ from __future__ import absolute_import, unicode_literals  # noqa
 import logging
 import numbers
 import sys
+from os import listdir
+from os.path import isfile, join
+import mimetypes
+import re,string
 
 import numpy as np
 
@@ -70,6 +74,40 @@ def matrix_to_lists(doc_word):
         WS[startidx:startidx + cnt] = jj[i]
         startidx += cnt
     return WS, DS
+
+
+def files_to_lists(directory):
+    """Convert directory of text files into arrays of word and doc indices
+    Parameters
+    ----------
+    directory : path of directory contains text files (documents)
+    Returns
+    -------
+    (V, WS, DS) : tuple of two arrays
+        V[j] contains jth word in the corpus vocabulary
+        WS[k] contains index of the kth word in the corpus
+        DS[k] contains the document index for the kth word
+    """
+    textfiles = [f for f in listdir(directory) if (isfile(join(directory, f)) and mimetypes.guess_type(join(directory, f))[0]=='text/plain')]
+    textfiles = sorted(textfiles)
+    V = [] #vocabulary list
+    print textfiles
+    WS=[]
+    DS=[]
+    for f in range(len(textfiles)):
+        r = open(join(directory,textfiles[f])).read().lower()
+        table=string.maketrans("","")
+        t=r.translate(table,string.punctuation)
+        for w in re.split(' |\n|\r|\t',t): #need to remove numbers later
+            if len(w)>0:
+                iw=len(V)
+                try:
+                    iw = V.index(w)
+                except:
+                    V+=[w]
+                WS+=[iw]
+                DS+=[f]
+    return np.asarray(V),np.asarray(WS,dtype=np.intc),np.asarray(DS,dtype=np.intc)
 
 
 def lists_to_matrix(WS, DS):
